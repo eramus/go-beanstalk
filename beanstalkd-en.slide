@@ -1,0 +1,110 @@
+Asynchronous workloads with beanstalkd
+17 Mar 2016
+
+Louis Zeun
+Chief Architect, Orb
+louiszeun@louiszeun.com
+
+* What will I talk about?
+
+How to use a simple package to scale asynchronous processes in your infrastructure.
+
+How this technique can provide a manageable, scalable way to grow your application stack as load flucuates.
+
+& Hi my name is Louis and tonight I am going to talk about how we can use Go and beanstalkd to create asynchronous workloads. A quick note about myself, Ive been a Gopher for about 4.5 years, and I am also the chief architect at Orb. We are a small startup in Shinjuku working on digital currencies and distributed computing.
+
+& A couple of things that I am going to discuss with you tonight are: how you can use a simple library that I wrote to easily create processes that can run anywhere in your infrastructure and how we can use this pattern to manage our application as requirements and load changes.
+
+* github.com/eramus/worker
+
+Dependencies
+
+- Go!
+- beanstalkd
+
+The worker library provides a very simple way to segment your backend workloads by implementing a simple function type.
+
+	type Func func(*Request) Response
+
+This allows us to spread our load and processes around our infrastructure in a simple and manageable way.
+
+Also, its incredibly simple to communicate with the workers!
+
+& So, the library that I have written is called: "worker". It provides some helpful features that reduces development time for implementing workloads via job queues -- the library requires just a few minimal configurations to get started. If youre not familiar with beanstalkd -- it is a very simple and light-weight job queue. It doesnt have many features or configurations, but what it does -- it does it very well. So, lets see a simple example!
+
+* A simple example
+
+.code beanstalk_work.go /^const addTube/,/^}/
+
+.code beanstalk_work.go /^func adder/,/^}/
+
+.code beanstalk_send.go /worker.Send/,/}/
+
+& First, we need to decide on a queue that our producers and consumers will use to pass jobs across the network. In this case we will use: "example_add". Second, we may want to create a data structure that both our producer and consumer know about -- this is not mandatory, but it is very useful.
+
+& The next thing we need to define is a function for our worker to run. This example is very simple -- we are simply adding two numbers and printing the result.
+
+& And finally, we need to send some data from the producer.
+
+& Lets see it in action:
+
+& So, lets imagine for a second that my laptop is actually two different machine. On the bottom, we will run our adding worker and on the top, we will run our job producer. <RUN IT!!!!>
+
+& As we can see here, our producer is creating two random numbers and sending them across beanstalk for our worker to add together. In this example we are sending a job every 250ms, but beanstalkd and Go can handle a lot more.
+
+& I ran a few tests on my home server -- its a quad-core server with 16 gigs, I was able achieve 26k jobs per second. That is raw power and local network, but it can be very performant when configured correctly.
+
+* Why do it this way?
+
+This could be accomplished with a simple REST server!
+
+- Fire and forget
+- Easy to scale
+- Workers can automatically retry
+- Failure stats from the queue
+- Light infrastructure requirements
+
+& So, why would we want to do it this way?
+& This could easily be done with a couple of go routines or a REST server.
+& The first reason is that in the real world, we usually have more complicated work loads that we would like to "fire and forget".
+& Next is that using a job or message queue, allows us to scale the backend application by starting and stopping instances as our load requirements change.
+& Other reasons? We can simplify retry logic by letting the library and queue take over, we can also easily gather queues stats. This also has light infrastructure requirements that provide large benefit.
+
+* A few other uses
+
+- Sending emails
+- Click tracking
+- Image resizing
+- SMS/Push notifications
+
+& So outside of adding two numbers, what else could we do?
+& We could send emails in the background -- a user may come to your site to signup, we could fire off a job across beanstalk and immediately return an acknowledgement to the user.
+& Queues can also be useful for click tracking -- you might use a tracking pixel to count page views -- we want this to be responsive, so an asynchronous worker would be great to keep that interaction fast.
+& Another use might be for image resizing -- you may allow your users to upload images, but you know you want to create 2 or 3 or 10 different sizes -- rather than make them wait, we could notify a worker to start a resizing job.
+& Event based SMS/Push notifications are another great use case
+
+* Other features?
+
+- Synchronous worker support
+- Different type of job responses
+
+	RetryJob(err error, maxRetries int, delay DelayDecay) Response
+	DeleteJob(err error) Response
+	BuryJob(err error) Response
+
+- Multiple instances per process
+
+& Some other features that I have added to the library are:
+& support for synchronous workloads -- the library can automatically deliver job responses back to the producer if needed -- currently it is blocking but it can be useful.
+& A worker also has the option to report several types of job outcomes: retry (with max retry and/or a delay), you may want to delete (if acceptable error) or bury -- which is useful in the case of multiple job failures -- this is useful if you want to examine or diagnose what may have happened at a later time.
+
+* Improvements?
+
+- Support for other work/message queues!
+- Deployment with Docker and rkt!
+- Better data handling: json, errors, etc!
+- Decoupling send and receive for synchronous jobs
+- Unit tests!
+
+& send me a PR if you would like to contribute
+& or talk to me after the talk if you have more ideas

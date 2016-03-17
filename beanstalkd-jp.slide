@@ -1,0 +1,71 @@
+Asynchronous workloads with beanstalkd
+17 Mar 2016
+
+Louis Zeun
+Chief Architect, Orb
+louiszeun@louiszeun.com
+
+* 今日お話する内容は?
+
+あなたの環境で非同期プロセスを使い、スケーラビリティを確保する方法。
+
+負荷が読めない中で、どのように管理しやすくスケールするアプリケーションを作成するのか。
+
+* github.com/eramus/worker
+
+依存関係
+
+- Go!
+- beanstalkd
+
+ワーカーライブラリは次のような関数を実行することでバックエンドの負荷をセグメント化できます。
+
+	type Func func(*Request) Response
+
+この関数を使うことで簡単に処理をインフラ内で分散させることができます。
+
+そして、ワーカー同士のコミュニケーションも簡単です!
+
+* シンプルな例
+
+.code beanstalk_work.go /^const addTube/,/^}/
+
+.code beanstalk_work.go /^func adder/,/^}/
+
+.code beanstalk_send.go /worker.Send/,/}/
+
+* なぜこう書くのか?
+
+単に REST サーバを使うことで実現できます!
+
+- 起動したら忘れても大丈夫
+- 簡単にスケール
+- ワーカーは自動的にリトライ
+- キューから失敗の統計情報を取得可能
+- インフラに対する要求は低め
+
+* その他の使用方法
+
+- Eメールの送信
+- クリックのトラック
+- 画像のリサイズ
+- SMS やプッシュ通知
+
+* その他の機能は?
+
+- 同期ワーカーのサポート
+- 複数の種類のリスポンス
+
+	RetryJob(err error, maxRetries int, delay DelayDecay) Response
+	DeleteJob(err error) Response
+	BuryJob(err error) Response
+
+- 一プロセスあたり複数のインスタンス
+
+* 改良点は?
+
+- 他の種類のワーカー/メッセージキューのサポート!
+- Docker か rkt を使ったデプロイ!
+- データハンドルの改良: json や errors など!
+- 送信と受信処理の疎結合化
+- ユニットテスト!
